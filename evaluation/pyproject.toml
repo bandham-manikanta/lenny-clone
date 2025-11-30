@@ -1,0 +1,14 @@
+[project]
+name = "lenny-evaluation"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.29.0",
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "openai>=1.12.0",
+    "scikit-learn>=1.3.0",
+]
