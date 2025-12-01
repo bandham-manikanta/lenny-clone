@@ -121,6 +121,9 @@ prompt = st.chat_input("Ask me anything about product management...")
 
 # Process input
 if prompt:
+    if not prompt.strip():  # ✅ Add this
+        st.warning("Please enter a question")
+        st.stop()
     # User Message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):

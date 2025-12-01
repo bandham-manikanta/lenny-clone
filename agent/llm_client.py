@@ -37,7 +37,7 @@ class NvidiaLlamaClient:
         prompt: str,
         system_prompt: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: int = 500,
+        max_tokens: int = 1000,
         stream: bool = False
     ) -> str | Iterator[str]:
         """
