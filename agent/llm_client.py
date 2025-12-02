@@ -26,7 +26,7 @@ class NvidiaLlamaClient:
         )
         
         # Default model - adjust if your NIM uses different model name
-        self.model = "meta/llama-3.1-8b-instruct"
+        self.model = "meta/llama-3.1-70b-instruct"
         
         print(f"✅ NVIDIA NIM client initialized")
         print(f"   Base URL: {self.base_url}")
@@ -128,6 +128,30 @@ class NvidiaLlamaClient:
         except Exception as e:
             print(f"❌ NVIDIA NIM API error: {e}")
             raise
+    # In agent/llm_client.py, add this method:
+
+    def refine_with_style(self, draft_response: str, style_prompt: str) -> str:
+        """Second pass: Rewrite in Lenny's voice"""
+        
+        refinement_prompt = f"""
+    You are a style editor. Rewrite this response to match Lenny Rachitsky's voice.
+
+    ORIGINAL RESPONSE:
+    {draft_response}
+
+    STYLE REQUIREMENTS:
+    {style_prompt}
+
+    REWRITTEN VERSION (Lenny's voice):
+    """
+        
+        return self.generate(
+            prompt=refinement_prompt,
+            temperature=0.3,  # Lower temp for style consistency
+            max_tokens=1500,
+            stream=False
+        )
+
 
 
 if __name__ == "__main__":

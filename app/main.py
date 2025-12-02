@@ -1,247 +1,174 @@
-"""
-Streamlit UI for Lenny Rachitsky Clone
-"""
-
+import streamlit as st
 import sys
 import os
+import time
 from pathlib import Path
 
 # Add agent directory to path
 agent_path = Path(__file__).parent.parent / "agent"
 sys.path.insert(0, str(agent_path))
 
-import streamlit as st
-from typing import List, Dict
-
 # Import with error handling
 try:
     from rag import LennyRAG
 except ImportError as e:
-    st.error(f"Import error: {e}")
-    st.info("Make sure the agent module is in the correct path")
+    st.error(f"Critical Error: Could not import LennyRAG. Path: {agent_path}")
     st.stop()
 
-
-# Page config
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="Chat with Lenny Rachitsky",
-    page_icon="🎙️",
-    layout="wide",
+    page_title="LennyBot | AI PM Coach",
+    page_icon="🧢",
+    layout="centered",
     initial_sidebar_state="expanded"
 )
 
-
-# Custom CSS
+# --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #FF6B6B;
-        text-align: center;
-        margin-bottom: 0.5rem;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
+    .main-header { font-family: 'Inter', sans-serif; font-weight: 700; color: #333; }
     .source-box {
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 5px;
-        margin: 5px 0;
+        background-color: #f8f9fa;
+        border-left: 4px solid #FF4B4B;
+        padding: 15px;
+        margin-top: 10px;
+        border-radius: 4px;
         font-size: 0.9rem;
+    }
+    .source-title { font-weight: 600; color: #333; margin-bottom: 5px; }
+    .source-snippet { font-style: italic; color: #555; font-size: 0.85rem; }
+    .match-score {
+        background-color: #e6ffe6;
+        color: #006600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# --- INITIALIZATION ---
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hey! 👋 I'm **LennyBot**. \n\nI can help you with Product-Market Fit, Retention, Hiring, and Growth. What's on your mind?"}
+    ]
 
 @st.cache_resource(show_spinner=False)
-def initialize_rag():
-    """Initialize RAG pipeline (cached)"""
-    with st.spinner("🚀 Initializing Lenny AI..."):
-        try:
-            return LennyRAG()
-        except Exception as e:
-            st.error(f"Failed to initialize: {e}")
-            st.info("Check environment variables and Qdrant connection")
-            return None
+def get_rag_engine():
+    return LennyRAG()
 
+try:
+    rag = get_rag_engine()
+except Exception as e:
+    st.error(f"Failed to initialize RAG Engine: {e}")
+    st.stop()
 
-def display_sources(sources: List[Dict]):
-    """Display source citations"""
-    if not sources:
-        return
+# --- SIDEBAR ---
+with st.sidebar:
+    st.image("https://substackcdn.com/image/fetch/w_96,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fbucketeer-e05bbc84-baa3-437e-9518-adb32be77984.s3.amazonaws.com%2Fpublic%2Fimages%2F546947f2-7914-405e-9713-534d0f172476_1280x1280.png", width=60)
+    st.markdown("### LennyBot Settings")
+    temperature = st.slider("Creativity", 0.0, 1.0, 0.5, 0.1)
+    top_k = st.slider("Reference Depth", 3, 7, 5)
     
-    with st.expander("📚 Sources Used", expanded=False):
-        for i, source in enumerate(sources, 1):
-            source_type = "🎙️ Podcast" if source['type'] == 'youtube' else "💼 LinkedIn"
-            col1, col2 = st.columns([3, 1])
-            
-            with col1:
-                st.markdown(f"**{source_type}**")
-                if source['url']:
-                    st.markdown(f"[View source]({source['url']})")
-            
-            with col2:
-                st.metric("Relevance", f"{source['score']:.0%}")
-            
-            if i < len(sources):
-                st.divider()
+    st.divider()
+    if st.button("🗑️ Clear Chat", use_container_width=True):
+        st.session_state.messages = st.session_state.messages[:1]
+        st.rerun()
 
+# --- MAIN CHAT INTERFACE ---
+st.markdown("<h1 class='main-header'>🧢 LennyBot</h1>", unsafe_allow_html=True)
+st.caption("Powered by **NVIDIA NIM**, **Llama 3.1**, and **Hybrid RAG**")
 
-def main():
-    """Main Streamlit app"""
+# 1. DISPLAY HISTORY
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+        
+        # Check if this message has sources attached
+        if msg.get("sources"):
+            with st.expander(f"📚 {len(msg['sources'])} Sources Analyzed"):
+                for src in msg["sources"]:
+                    score = int(src.get('score', 0) * 100)
+                    source_type = "🎙️ Podcast" if "youtube" in src.get('type', '') else "📝 Post"
+                    snippet = src.get('snippet', 'Content used for context.')
+                    
+                    st.markdown(f"""
+                    <div class="source-box">
+                        <div class="source-title">
+                            {source_type} <span class="match-score">{score}% Match</span>
+                        </div>
+                        <div class="source-snippet">"...{snippet[:200]}..."</div>
+                        <div style="margin-top:5px;">
+                            <a href="{src.get('url', '#')}" target="_blank">🔗 View Source</a>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+# 2. HANDLE INPUT
+if prompt := st.chat_input("Ask Lenny anything..."):
     
-    # Header
-    st.markdown('<div class="main-header">🎙️ Chat with Lenny Rachitsky</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="sub-header">Ask anything about product management, growth, and building products</div>',
-        unsafe_allow_html=True
-    )
-    
-    # Sidebar
-    with st.sidebar:
-        st.markdown("### ⚙️ Settings")
-        
-        temperature = st.slider(
-            "Response Creativity",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.7,
-            step=0.1,
-            help="Lower = more focused, Higher = more creative"
-        )
-        
-        top_k = st.slider(
-            "Number of Sources",
-            min_value=3,
-            max_value=10,
-            value=5,
-            step=1,
-            help="Number of relevant chunks to retrieve"
-        )
-        
-        source_filter = st.selectbox(
-            "Source Filter",
-            options=["All Sources", "YouTube Only", "LinkedIn Only"],
-            index=0
-        )
-        
-        source_filter_value = None
-        if source_filter == "YouTube Only":
-            source_filter_value = "youtube"
-        elif source_filter == "LinkedIn Only":
-            source_filter_value = "linkedin"
-        
-        st.divider()
-        
-        st.markdown("### 📖 About")
-        st.markdown("""
-        This AI is trained on:
-        - 🎙️ **100 YouTube podcasts**
-        - 💼 **100 LinkedIn posts**
-        
-        Uses RAG for grounded responses.
-        """)
-        
-        st.divider()
-        
-        st.markdown("### 💡 Example Questions")
-        examples = [
-            "What is product-market fit?",
-            "How do I improve retention?",
-            "What makes a great PM?",
-            "How should I price my product?",
-            "What are growth loops?",
-        ]
-        
-        for q in examples:
-            if st.button(q, key=f"ex_{hash(q)}", use_container_width=True):
-                st.session_state.example_q = q
-        
-        st.divider()
-        
-        if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.messages = []
-            st.rerun()
-    
-    # Initialize RAG
-    rag = initialize_rag()
-    
-    if rag is None:
-        st.error("❌ Failed to initialize. Check configuration.")
-        st.stop()
-    
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    
-    # Display chat history
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-            if msg["role"] == "assistant" and "sources" in msg:
-                display_sources(msg["sources"])
-    
-    # Handle input
-    user_input = None
-    
-    if "example_q" in st.session_state:
-        user_input = st.session_state.example_q
-        del st.session_state.example_q
-    else:
-        user_input = st.chat_input("Ask Lenny anything...")
-    
-    # Process input
-    if user_input:
-        # Add user message
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        
-        with st.chat_message("user"):
-            st.markdown(user_input)
-        
-        # Generate response
-        with st.chat_message("assistant"):
+    # Append User Message
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # Generate Assistant Response
+    with st.chat_message("assistant"):
+        with st.spinner("🧠 Consulting Lenny's knowledge base..."):
             try:
-                # Streaming response
-                response_placeholder = st.empty()
-                full_response = ""
-                
-                for chunk in rag.query(
-                    question=user_input,
-                    top_k=top_k,
-                    stream=True,
-                    temperature=temperature,
-                    source_filter=source_filter_value
-                ):
-                    full_response += chunk
-                    response_placeholder.markdown(full_response + "▌")
-                
-                response_placeholder.markdown(full_response)
-                
-                # Get sources
+                # Run RAG
                 result = rag.query_with_metadata(
-                    question=user_input,
+                    question=prompt,
                     top_k=top_k,
                     temperature=temperature
                 )
                 
-                display_sources(result['sources'])
+                response_text = result['response']
+                chunks = result['chunks']
                 
-                # Save to history
+                # Process Sources
+                enriched_sources = []
+                seen_urls = set()
+                for chunk in chunks:
+                    url = chunk.get('source_url')
+                    if url and url not in seen_urls:
+                        enriched_sources.append({
+                            "url": url,
+                            "score": chunk.get('score', 0),
+                            "type": chunk.get('source_type', 'unknown'),
+                            "snippet": chunk.get('text', '')
+                        })
+                        seen_urls.add(url)
+
+                # Display Response
+                st.markdown(response_text)
+                
+                # Display Sources (This is the ONLY place they render for the new message)
+                if enriched_sources:
+                    with st.expander(f"📚 {len(enriched_sources)} Sources Analyzed"):
+                        for src in enriched_sources:
+                            score = int(src['score'] * 100)
+                            source_type = "🎙️ Podcast" if "youtube" in src.get('type', '') else "📝 Post"
+                            
+                            st.markdown(f"""
+                            <div class="source-box">
+                                <div class="source-title">
+                                    {source_type} <span class="match-score">{score}% Match</span>
+                                </div>
+                                <div class="source-snippet">"...{src['snippet'][:200]}..."</div>
+                                <div style="margin-top:5px;">
+                                    <a href="{src['url']}" target="_blank">🔗 View Source</a>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                # Save to History (So they appear in the loop next time)
                 st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": full_response,
-                    "sources": result['sources']
+                    "role": "assistant", 
+                    "content": response_text,
+                    "sources": enriched_sources
                 })
-            
+                
             except Exception as e:
-                st.error(f"Error: {e}")
-                st.info("Please try again")
-
-
-if __name__ == "__main__":
-    main()
+                st.error(f"Error: {str(e)}")

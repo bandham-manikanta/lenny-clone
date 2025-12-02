@@ -96,8 +96,12 @@ class LennyRAG:
         
         # 2. Generate
         system_prompt = self.persona.get_system_prompt()
-        user_prompt = self.persona.get_stratified_prompt(question, lenny_chunks, guest_chunks)
-        
+        user_prompt = self.persona.get_enhanced_prompt(
+            question=question, 
+            lenny_chunks=lenny_chunks, 
+            guest_chunks=guest_chunks
+        )
+
         response = self.llm.generate(
             prompt=user_prompt,
             system_prompt=system_prompt,
@@ -126,3 +130,4 @@ class LennyRAG:
             "sources": sources,
             "chunks": sorted_chunks
         }
+    
