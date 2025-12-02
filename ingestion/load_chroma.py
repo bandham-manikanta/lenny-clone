@@ -103,7 +103,7 @@ class ChromaLoader:
         
         # Test search
         test_result = self.collection.query(
-            query_embeddings=[[0.1] * 384],  # Dummy embedding
+            query_embeddings=[[0.1] * 768],  # Dummy embedding
             n_results=1
         )
         

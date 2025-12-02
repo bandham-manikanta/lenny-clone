@@ -3,11 +3,12 @@ Main orchestration script - ChromaDB version
 """
 import sys
 from dotenv import load_dotenv
+import json
 load_dotenv()
 
 from extract_youtube import extract_youtube_transcripts
 from extract_linkedin import extract_linkedin_posts
-from process_data import DataProcessor
+from ingestion.process_data_old import DataProcessor
 from load_chroma import ChromaLoader  # ✅ Changed from QdrantUploader
 
 def run_full_pipeline(skip_extraction=False):
@@ -16,11 +17,16 @@ def run_full_pipeline(skip_extraction=False):
     if not skip_extraction:
         # 1. YouTube
         print("📺 STEP 1: YouTube")
-        yt_data = extract_youtube_transcripts(limit=100)
+        # yt_data = extract_youtube_transcripts(limit=100)
+        with open('data/youtube_transcripts.json', 'r', encoding='utf-8') as f:
+            yt_data = json.load(f)
         
         # 2. LinkedIn
         print("\n💼 STEP 2: LinkedIn")
-        li_data = extract_linkedin_posts(limit=100)
+        # li_data = extract_linkedin_posts(limit=100)
+        with open('data/linkedin_posts.json', 'r', encoding='utf-8') as f:
+            li_data = json.load(f)
+
         
         if not yt_data and not li_data:
             print("⚠️  No new data collected, will process existing data if available")

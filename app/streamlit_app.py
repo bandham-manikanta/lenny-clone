@@ -69,7 +69,7 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("### ⚙️ Settings")
-    temperature = st.slider("Creativity", 0.0, 1.0, 0.7, help="Higher = more creative, Lower = more focused")
+    temperature = st.slider("Creativity", 0.0, 1.0, 0.3, help="Higher = more creative, Lower = more focused")
     top_k = st.slider("Number of Sources", 3, 10, 5, help="How many relevant sources to retrieve")
     
     st.markdown("---")

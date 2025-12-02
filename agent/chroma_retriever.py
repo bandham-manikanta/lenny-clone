@@ -140,6 +140,16 @@ class ChromaRetriever:
             where=where_filter,
             include=['documents', 'metadatas', 'distances']
         )
+
+        # results_copy = results.copy()
+        # results = []
+        # filtered_results = []
+        # for rec in results_copy:
+        #     # ChromaDB uses distance (lower is better). 
+        #     # Threshold depends on metric (L2 vs Cosine). Assuming Cosine distance < 0.4 is good.
+        #     doc, score = results_copy['documents'][0], results_copy['distances'][0]
+        #     if score < 0.4: 
+        #         results.append(rec)
         
         # Format results (same as above)
         formatted_results = []
