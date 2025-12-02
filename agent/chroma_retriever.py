@@ -3,53 +3,90 @@ ChromaDB retriever for local semantic search (FAST!)
 """
 
 import os
-import chromadb
+import sys
 from typing import List, Dict
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 import hashlib
 
+# Try to import chromadb
+try:
+    import chromadb
+except ImportError:
+    print("❌ ChromaDB not installed. Installing...")
+    import subprocess
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "chromadb==0.4.22"])
+    import chromadb
+
 load_dotenv()
 
 class ChromaRetriever:
     def __init__(self):
-        # Check if we're on Vercel
-        if os.getenv('VERCEL'):
-            # Use /tmp (10GB limit, cleared after cold start)
+        # Streamlit Cloud / Vercel handling
+        if os.getenv('VERCEL') or os.getenv('STREAMLIT_RUNTIME_ENV'):
             self.persist_directory = "/tmp/chroma_db"
             
-            # On first run, copy from build artifacts
+            # Copy from build artifacts if exists
             if not os.path.exists(self.persist_directory):
-                import shutil
-                shutil.copytree("./chroma_db", self.persist_directory)
+                source_db = os.path.join(os.path.dirname(__file__), "..", "chroma_db")
+                if os.path.exists(source_db):
+                    import shutil
+                    print(f"📦 Copying chroma_db to /tmp for serverless deployment...")
+                    shutil.copytree(source_db, self.persist_directory)
+                else:
+                    print(f"⚠️ ChromaDB directory not found at {source_db}")
         else:
-            self.persist_directory = "./chroma_db"
-
+            # Local development
+            self.persist_directory = os.path.join(
+                os.path.dirname(__file__), "..", "chroma_db"
+            )
+        
         self.collection_name = os.getenv('CHROMA_COLLECTION_NAME', 'lenny_clone')
-        self.embedding_model_name = os.getenv('EMBEDDING_MODEL', 'sentence-transformers/all-MiniLM-L6-v2')
-        self.persist_directory = "./chroma_db"
+        self.embedding_model_name = os.getenv(
+            'EMBEDDING_MODEL', 
+            'sentence-transformers/all-MiniLM-L6-v2'
+        )
         
         print(f"🔧 Initializing ChromaRetriever...")
+        print(f"   DB Path: {self.persist_directory}")
         
-        # Initialize ChromaDB client (persistent)
-        self.client = chromadb.PersistentClient(path=self.persist_directory)
+        # Initialize ChromaDB client
+        try:
+            self.client = chromadb.PersistentClient(path=self.persist_directory)
+            print(f"   ✅ ChromaDB client initialized")
+        except Exception as e:
+            print(f"   ❌ Failed to initialize ChromaDB: {e}")
+            raise
         
         # Get or create collection
         try:
             self.collection = self.client.get_collection(name=self.collection_name)
-            print(f"   ✅ Loaded existing collection: {self.collection_name}")
-        except:
-            # Collection doesn't exist yet
+            print(f"   ✅ Loaded collection: {self.collection_name}")
+            
+            # Verify collection has data
+            count = self.collection.count()
+            print(f"   📊 Collection has {count} documents")
+            
+            if count == 0:
+                raise ValueError("Collection is empty - please run load_chroma.py")
+                
+        except Exception as e:
+            print(f"   ⚠️ Collection error: {e}")
             self.collection = None
-            print(f"   ⚠️  Collection not found. Run load_chroma.py first.")
+            print(f"   ❌ Collection '{self.collection_name}' not found or empty")
+            print(f"   💡 Make sure 'chroma_db/' folder is in your deployment")
         
         # Initialize embedding model
         print(f"📥 Loading embedding model: {self.embedding_model_name}")
-        self.embedding_model = SentenceTransformer(
-            self.embedding_model_name,
-            device='cpu'
-        )
-        print(f"   ✅ Model loaded")
+        try:
+            self.embedding_model = SentenceTransformer(
+                self.embedding_model_name,
+                device='cpu'
+            )
+            print(f"   ✅ Model loaded")
+        except Exception as e:
+            print(f"   ❌ Failed to load embedding model: {e}")
+            raise
         
         # Embedding cache
         self._embedding_cache = {}
