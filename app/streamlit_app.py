@@ -2,10 +2,10 @@ import streamlit as st
 import sys
 from pathlib import Path
 
-agent_path = Path(__file__).parent.parent / "agent"
-sys.path.insert(0, str(agent_path))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-from rag import LennyRAG
+from agent.rag import LennyRAG
 
 st.set_page_config(
     page_title="LennyBot | AI PM Coach",
