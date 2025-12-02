@@ -16,18 +16,16 @@ class LennyRAG:
     
     def _get_dual_stream_context(self, question: str, top_k: int):
         """Helper to perform the stratified retrieval"""
-        # STREAM 1: Retrieve Lenny's Voice (Force LinkedIn)
         lenny_chunks = self.retriever.search_with_filters(
             query=question,
             source_filter="linkedin",
-            top_k=3 # Force 3 Lenny posts
+            top_k=3
         )
         
-        # STREAM 2: Retrieve Guest Evidence (Force YouTube)
         guest_chunks = self.retriever.search_with_filters(
             query=question,
             source_filter="youtube",
-            top_k=3 # Force 3 Podcast clips
+            top_k=3
         )
         
         return lenny_chunks, guest_chunks
@@ -46,13 +44,10 @@ class LennyRAG:
         """
         print(f"\n🔍 Sophisticated Query: {question}")
         
-        # 1. Retrieval
         if source_filter:
-            # If user manually filtered in UI, respect it
             lenny_chunks = []
             guest_chunks = self.retriever.search_with_filters(question, source_filter, top_k)
         else:
-            # Default: Use Sophisticated Dual-Stream
             lenny_chunks, guest_chunks = self._get_dual_stream_context(question, top_k)
         
         all_chunks = lenny_chunks + guest_chunks
@@ -64,55 +59,46 @@ class LennyRAG:
                 return
             return msg
         
-        # 2. Build Stratified Prompt
-        system_prompt = self.persona.get_system_prompt()
-        user_prompt = self.persona.get_stratified_prompt(
-            question=question, 
-            lenny_chunks=lenny_chunks, 
-            guest_chunks=guest_chunks
-        )
-        
-        # 3. Generate (Streaming)
-        return self.llm.generate(
-            prompt=user_prompt,
-            system_prompt=system_prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=stream
-        )
-    
-    def query_with_metadata(
-        self,
-        question: str,
-        top_k: int = 5,
-        temperature: float = 0.7
-    ) -> Dict:
-        """
-        Used for the final UI display to show sources
-        """
-        # 1. Retrieve
-        lenny_chunks, guest_chunks = self._get_dual_stream_context(question, top_k)
-        all_chunks = lenny_chunks + guest_chunks
-        
-        # 2. Generate
         system_prompt = self.persona.get_system_prompt()
         user_prompt = self.persona.get_enhanced_prompt(
             question=question, 
             lenny_chunks=lenny_chunks, 
             guest_chunks=guest_chunks
         )
-
+        
         response = self.llm.generate(
             prompt=user_prompt,
             system_prompt=system_prompt,
             temperature=temperature,
-            stream=False
+            max_tokens=max_tokens,
+            stream=stream
         )
         
-        # 3. Format Sources
+        # KEY FIX: If streaming, yield from the generator instead of returning it
+        if stream:
+            for chunk in response:
+                yield chunk
+        else:
+            return response
+
+    
+    def query_with_metadata(
+        self,
+        question: str,
+        top_k: int = 5,
+        temperature: float = 0.7,
+        stream: bool = False  # Now supports streaming!
+    ) -> Dict | Iterator[Dict]:
+        """
+        Returns response + metadata. Now supports streaming.
+        """
+        # 1. Retrieve (always happens first)
+        lenny_chunks, guest_chunks = self._get_dual_stream_context(question, top_k)
+        all_chunks = lenny_chunks + guest_chunks
+        
+        # 2. Format Sources
         sources = []
         seen_urls = set()
-        # Sort by score to show best relevance first
         sorted_chunks = sorted(all_chunks, key=lambda x: x['score'], reverse=True)
         
         for chunk in sorted_chunks:
@@ -125,9 +111,38 @@ class LennyRAG:
                 })
                 seen_urls.add(chunk['source_url'])
         
-        return {
-            "response": response,
-            "sources": sources,
-            "chunks": sorted_chunks
-        }
-    
+        # 3. Generate
+        system_prompt = self.persona.get_system_prompt()
+        user_prompt = self.persona.get_enhanced_prompt(
+            question=question, 
+            lenny_chunks=lenny_chunks, 
+            guest_chunks=guest_chunks
+        )
+
+        response = self.llm.generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            stream=stream
+        )
+        
+        # 4. Return based on streaming mode
+        if stream:
+            # For streaming: return chunks/sources immediately, yield response
+            def stream_with_metadata():
+                for chunk in response:
+                    yield chunk
+            
+            # Return a dict with the generator
+            return {
+                "response_stream": stream_with_metadata(),
+                "sources": sources,
+                "chunks": sorted_chunks
+            }
+        else:
+            # Non-streaming: return everything at once
+            return {
+                "response": response,
+                "sources": sources,
+                "chunks": sorted_chunks
+            }

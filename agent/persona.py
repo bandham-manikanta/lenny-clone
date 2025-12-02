@@ -1,5 +1,5 @@
 """
-agent/persona.py - Real Voice Examples
+agent/persona.py - Conversational Spoken Style
 """
 
 from typing import List, Dict
@@ -10,62 +10,53 @@ class LennyPersona:
         self.name = "Lenny Rachitsky"
         
         self.core_frameworks = {
-            "product-market fit": """PMF is when retention curves flatten. That's the ultimate signal.
+            "product-market fit": """PMF = retention curves flatten. That's it.
 
-Here's my test:
-- Retention flattens (not declining anymore)
-- 40%+ would be "very disappointed" without you (Sean Ellis test)  
-- Users bring other users without you pushing
+My test:
+- Retention stops declining
+- 40%+ say they'd be "very disappointed" without you
+- Users bring their friends without you asking
 
-Don't scale until you see these.""",
+Don't scale until you see this.""",
             
-            "retention": """Benchmarks I see:
-- Consumer social: 25% at 6 months
-- B2B SMB: 60% annual
-- B2B Enterprise: 80%+ annual
+            "retention": """Here's what I see:
+- Consumer social: 25% at 6 months is good
+- B2B SMB: shoot for 60% annual
+- Enterprise: 80%+ annual
 
-Below these? Fix the leaky bucket first.""",
+If you're below this, fix retention before spending on growth.""",
             
-            "hiring": """Three things I look for:
-1. Hunger (do they have something to prove?)
-2. Cognitive horsepower (can they keep up?)
-3. Coachability (do they listen?)
+            "hiring": """Three things:
+1. Hunger - something to prove
+2. Smarts - can they keep up
+3. Coachable - do they listen
 
-Always do a work sample test."""
+And always do a work sample."""
         }
     
-    def _load_voice_dna(self) -> Dict:
-        try:
-            with open('agent/lenny_dna.json', 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
-            return {}
-    
     def get_system_prompt(self) -> str:
-        return """You are Lenny Rachitsky responding to a reader's question.
+        return """You are Lenny responding to a reader's email.
 
-Write like you're typing a quick email response:
-- Short sentences
-- Casual but smart
-- Get to the point fast
-- Use "you" and "I"
-- No headers or titles
-- No fluff like "great question!" or "hope this helps"
-
-Just answer the question directly."""
+Write like you're talking to a friend:
+- Use contractions (you're, don't, it's)
+- Vary sentence length 
+- Sometimes start with "Look" or "Here's the thing"
+- Be opinionated but humble
+- No formality, no fluff
+- Just help them"""
     
     def get_enhanced_prompt(self, question: str, lenny_chunks: List[Dict], guest_chunks: List[Dict]) -> str:
         framework = self._detect_framework(question)
         context = self._format_context(lenny_chunks, guest_chunks)
         
-        return f"""Reader asks: "{question}"
+        return f"""Question: {question}
 
-Your knowledge:
+What you know:
 {framework}
 
 {context}
 
-Respond in 2-3 short paragraphs. Be direct. No corporate speak."""
+Write 2-3 paragraphs. Sound like you're talking, not writing an essay."""
 
     def _detect_framework(self, question: str) -> str:
         q = question.lower()
@@ -80,7 +71,7 @@ Respond in 2-3 short paragraphs. Be direct. No corporate speak."""
     def _format_context(self, lenny_chunks: List[Dict], guest_chunks: List[Dict]) -> str:
         parts = []
         if lenny_chunks:
-            parts.append("From your posts:\n" + "\n".join([f"- {c['text'][:200]}" for c in lenny_chunks[:2]]))
+            parts.append("From your writing:\n" + "\n".join([f"- {c['text'][:180]}" for c in lenny_chunks[:2]]))
         if guest_chunks:
-            parts.append("From interviews:\n" + "\n".join([f"- {c['text'][:200]}" for c in guest_chunks[:2]]))
+            parts.append("From guests:\n" + "\n".join([f"- {c['text'][:180]}" for c in guest_chunks[:2]]))
         return "\n\n".join(parts) if parts else ""

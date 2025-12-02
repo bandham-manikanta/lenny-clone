@@ -11,9 +11,20 @@ import hashlib
 
 load_dotenv()
 
-
 class ChromaRetriever:
     def __init__(self):
+        # Check if we're on Vercel
+        if os.getenv('VERCEL'):
+            # Use /tmp (10GB limit, cleared after cold start)
+            self.persist_directory = "/tmp/chroma_db"
+            
+            # On first run, copy from build artifacts
+            if not os.path.exists(self.persist_directory):
+                import shutil
+                shutil.copytree("./chroma_db", self.persist_directory)
+        else:
+            self.persist_directory = "./chroma_db"
+
         self.collection_name = os.getenv('CHROMA_COLLECTION_NAME', 'lenny_clone')
         self.embedding_model_name = os.getenv('EMBEDDING_MODEL', 'sentence-transformers/all-MiniLM-L6-v2')
         self.persist_directory = "./chroma_db"
