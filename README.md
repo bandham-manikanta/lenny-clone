@@ -6,7 +6,6 @@ Let me create natural, practical documentation that gets straight to the point.
 
 ## **README.md**
 
-```markdown
 # LennyBot 🧢
 
 An AI chatbot that thinks and talks like Lenny Rachitsky. Built with RAG, NVIDIA NIM, and ChromaDB.
@@ -201,14 +200,13 @@ MIT
 
 ---
 
-Built with 🧢 by [Your Name]
+Built with 🧢 by Manikanta Bandham
 ```
 
 ---
 
 ## **DEPLOYMENT.md**
 
-```markdown
 # Deploying to Vercel
 
 LennyBot runs on Vercel with serverless functions. Here's how to deploy it.
@@ -329,7 +327,6 @@ Need help? Open an issue on GitHub.
 
 ## **ARCHITECTURE.md**
 
-```markdown
 # Architecture
 
 How LennyBot works under the hood.
