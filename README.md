@@ -201,7 +201,6 @@ MIT
 ---
 
 Built with 🧢 by Manikanta Bandham
-```
 
 ---
 
